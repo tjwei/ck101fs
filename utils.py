@@ -9,6 +9,7 @@ from cachecontrol import CacheControl
 sess = requests.session()
 cached_sess = CacheControl(sess)
 
+
 def get_image_info(data):
     """
     read image dimension
@@ -54,14 +55,16 @@ def get_image_info(data):
         b = jpeg.read(1)
         try:
             while (b and ord(b) != 0xDA):
-                while (ord(b) != 0xFF): b = jpeg.read(1)
-                while (ord(b) == 0xFF): b = jpeg.read(1)
+                while (ord(b) != 0xFF):
+                    b = jpeg.read(1)
+                while (ord(b) == 0xFF):
+                    b = jpeg.read(1)
                 if (ord(b) >= 0xC0 and ord(b) <= 0xC3):
                     jpeg.read(3)
                     h, w = struct.unpack(">HH", jpeg.read(4))
                     break
                 else:
-                    jpeg.read(int(struct.unpack(">H", jpeg.read(2))[0])-2)
+                    jpeg.read(int(struct.unpack(">H", jpeg.read(2))[0]) - 2)
                 b = jpeg.read(1)
             width = int(w)
             height = int(h)
@@ -71,6 +74,7 @@ def get_image_info(data):
             pass
 
     return content_type, width, height
+
 
 def parse_url(url):
     """
@@ -94,7 +98,8 @@ def parse_url(url):
 
         # title
         try:
-            title = html.find('.//title').text.split(' - ')[0].replace('/', '').strip()
+            title = html.find(
+                './/title').text.split(' - ')[0].replace('/', '').strip()
             break
         except AttributeError:
             print 'Retrying ...'
