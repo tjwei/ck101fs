@@ -17,8 +17,9 @@ fusepy
 requests
 CacheControl
 gevent
+more_itertools
 ```
-全都能用 pip 安裝
+全都能用 pip 安裝，除了 fusepy 外，都是 iloveck101 原本需要的 module
 
 使用範例：
 ```
