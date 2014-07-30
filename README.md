@@ -8,7 +8,7 @@ ck101 filesystem
 原始碼修改自 https://github.com/tzangms/iloveck101 的檔案，及 fusepy 的範例。
 
 這是我拿來練習 fuse 用的
-![Screen Shot](https://raw.github.com/tjwei/ck101fs/master/ScreenShot.jpg)
+![Screen Shot](https://raw.github.com/tjwei/ck101fs/master/ScreenShot.png)
 
 需要 fuse (如 Fuse for OSX) 及 python
 需要的 python module 如下 
@@ -17,8 +17,9 @@ fusepy
 requests
 CacheControl
 gevent
+more_itertools
 ```
-全都能用 pip 安裝
+全都能用 pip 安裝，除了 fusepy 外，都是 iloveck101 原本需要的 module
 
 使用範例：
 ```
