@@ -14,12 +14,12 @@ ck101 filesystem
 需要的 python module 如下 
 ```
 fusepy
-requests
 CacheControl
+requests
 gevent
 more_itertools
 ```
-全都能用 pip 安裝，除了 fusepy 外，都是 iloveck101 原本需要的 module
+全都能用 pip 安裝，除了 fusepy 外，CacheControl 是  requests 的 cache， 其他是 iloveck101 需要的 module。
 
 使用範例：
 ```
