@@ -8,7 +8,7 @@ ck101 filesystem
 原始碼修改自 https://github.com/tzangms/iloveck101 的檔案，及 fusepy 的範例。
 
 這是我拿來練習 fuse 用的
-![Screen Shot](https://raw.github.com/tjwei/ck101fs/master/ScreenShot.jpg)
+![Screen Shot](https://raw.github.com/tjwei/ck101fs/master/ScreenShot.png)
 
 需要 fuse (如 Fuse for OSX) 及 python
 需要的 python module 如下 
