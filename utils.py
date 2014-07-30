@@ -1,6 +1,6 @@
 import struct
 from cStringIO import StringIO
-
+import dateutil.parser
 import requests
 from lxml import etree
 
@@ -109,4 +109,10 @@ def parse_url(url):
         raise URLParseError
 
     image_urls = html.xpath('//img/@file')
-    return title, image_urls
+    print resp.headers
+    try:
+        date = dateutil.parser.parse(resp.headers["last-modified"])
+    except:
+        date = None
+    
+    return title, image_urls, date

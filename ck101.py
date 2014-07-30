@@ -4,8 +4,8 @@ from errno import ENOENT
 from stat import S_IFDIR, S_IFREG
 from sys import argv, exit
 import os
-from time import time
-
+from time import time, mktime
+import dateutil.parser
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
 import gevent
@@ -64,24 +64,32 @@ def read_img(img):
     if width < 300 or height < 300:
         print "image is too small"
         return
-    return resp.content
+    return resp
 
 
 def get_imgs(url):
-    title, image_urls = parse_url(url)
+    title, image_urls, date = parse_url(url)
     rtn = []
 
     def worker(img):
         if not img.startswith('http'):
             return
-        content = read_img(img)
-        if content:
-            rtn.append((img, content))
+        resp = read_img(img)
+        if resp and resp.content:
+            entry = {"url":img, "size": len(resp.content)}            
+            if "last-modified" in resp.headers:
+                try:                    
+                    entry['date']=dateutil.parser.parse(resp.headers['last-modified'])
+                except:
+                    pass # Never mind
+            rtn.append(entry)
     for chunked_image_urls in chunked(image_urls, CHUNK_SIZE):
         jobs = [gevent.spawn(worker, image_url)
                 for image_url in chunked_image_urls]
         gevent.joinall(jobs)
-    return rtn
+    if not date:
+        date = min(x['date'] for x in rtn if 'date' in x)
+    return rtn, date
 
 
 
@@ -112,23 +120,27 @@ class CK(LoggingMixIn, Operations):
     def getattr(self, path, fh=None):
         if path == '/':
             st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
+            st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()
         else:            
-            thread_info = self.get_thread_info(path)
-            if thread_info:            
+            info = self.get_thread_info(path)
+            if info:            
                 st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)                
             else:
                 info = self.get_file_info(path)
                 size = info["size"]
                 st = dict(st_mode=(S_IFREG | 0444), st_size=size)
-
-        st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()
+            if "date" in info:
+                # print info['date']
+                st['st_ctime'] = st['st_mtime'] = st['st_atime'] = mktime(info['date'].timetuple())
+            else:
+                st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()                
         return st    
 
     def read(self, path, size, offset, fh):
         info = self.get_file_info(path)
         img = info["url"]
-        rtn = read_img(img)
-        return rtn[offset:offset + size]
+        resp = read_img(img)
+        return resp.content[offset:offset + size]
 
     def readdir(self, path, fh):
         if path == "/":
@@ -139,9 +151,12 @@ class CK(LoggingMixIn, Operations):
                 url = thread_info["url"]
                 if url not in self.thread_list:
                     fn_list = self.thread_list[url] = {}
-                    for img, content in get_imgs(url):
-                        fn = img.rsplit("/", 1)[1]
-                        fn_list[fn] = {"url":img, "size":len(content)}
+                    imgs, date = get_imgs(url)
+                    if date:
+                        thread_info['date'] = date
+                    for entry in imgs:                        
+                        fn = entry['url'].rsplit("/", 1)[1]
+                        fn_list[fn] = entry
                 return [".", ".."] + self.thread_list[url].keys()
             else:
                 raise FuseOSError(ENOENT)
