@@ -28,4 +28,4 @@ python ck101.py beauty mnt
 python ck101.py odd mnt
 ```
 可用 Ctrl-C 或 umount 來結束。
-因為屬於遠端檔案系統，上網抓資料需要時間，等待可以看看 Console 的訊息，顯示上網抓資料的進度。
+因為屬於「雲端檔案系統」，上網抓資料需要時間，等待可以看看 Console 的訊息，顯示上網抓資料的進度。

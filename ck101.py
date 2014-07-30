@@ -6,8 +6,7 @@ from sys import argv, exit
 import os
 from time import time
 
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
-
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
 import gevent
 from gevent import monkey
@@ -83,73 +82,67 @@ def get_imgs(url):
                 for image_url in chunked_image_urls]
         gevent.joinall(jobs)
     return rtn
-thread_list = {}
+
+
 
 
 class CK(LoggingMixIn, Operations):
-
-    def good_path(self, path):
+    def __init__(self, root_list):
+        self.root = root_list
+        self.thread_list = {}
+    def get_thread_info(self, path):
         head, tail = os.path.split(path)
-        try:
-            num = int(tail)
-        except:
+        if head == "/" and tail in self.root:
+                return self.root[tail]
+        return None
+        
+    def get_file_info(self, path):        
+        head, fn = os.path.split(path)
+        thread_info = self.get_thread_info(head)
+        if not thread_info:
             raise FuseOSError(ENOENT)
-        return num
+        thread_url = thread_info['url']
+        if thread_url not in self.thread_list:
+            raise FuseOSError(ENOENT)
+        fn_list = self.thread_list[thread_url]
+        if fn not in fn_list:
+            raise FuseOSError(ENOENT)
+        return fn_list[fn]
 
     def getattr(self, path, fh=None):
         if path == '/':
             st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
-        else:
-            head, tail = os.path.split(path)
-            if head == "/":
-                if tail in root_list:
-                    st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
-                else:
-                    raise FuseOSError(ENOENT)
+        else:            
+            thread_info = self.get_thread_info(path)
+            if thread_info:            
+                st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)                
             else:
-                hh, thread = os.path.split(head)
-                if thread not in root_list:
-                    raise FuseOSError(ENOENT)
-                thread_url = root_list[thread]
-                if thread_url not in thread_list:
-                    raise FuseOSError(ENOENT)
-                fn_list = thread_list[thread_url]
-                if tail not in fn_list:
-                    raise FuseOSError(ENOENT)
-                size = fn_list[tail][1]
+                info = self.get_file_info(path)
+                size = info["size"]
                 st = dict(st_mode=(S_IFREG | 0444), st_size=size)
 
         st['st_ctime'] = st['st_mtime'] = st['st_atime'] = time()
-        return st
+        return st    
 
     def read(self, path, size, offset, fh):
-        head, fn = os.path.split(path)
-        hh, thread = os.path.split(head)
-        if hh != '/' or thread not in root_list:
-            raise FuseOSError(ENOENT)
-        thread_url = root_list[thread]
-        if thread_url not in thread_list:
-            raise FuseOSError(ENOENT)
-        fn_list = thread_list[thread_url]
-        if fn not in fn_list:
-            raise FuseOSError(ENOENT)
-        img = fn_list[fn][0]
+        info = self.get_file_info(path)
+        img = info["url"]
         rtn = read_img(img)
         return rtn[offset:offset + size]
 
     def readdir(self, path, fh):
         if path == "/":
-            return [".", ".."] + root_list.keys()
+            return [".", ".."] + self.root.keys()
         else:
-            head, tail = os.path.split(path)
-            if head == "/" and tail in root_list:
-                url = root_list[tail]
-                if url not in thread_list:
-                    fn_list = thread_list[url] = {}
+            thread_info = self.get_thread_info(path)            
+            if thread_info:
+                url = thread_info["url"]
+                if url not in self.thread_list:
+                    fn_list = self.thread_list[url] = {}
                     for img, content in get_imgs(url):
                         fn = img.rsplit("/", 1)[1]
-                        fn_list[fn] = (img, len(content))
-                return [".", ".."] + thread_list[url].keys()
+                        fn_list[fn] = {"url":img, "size":len(content)}
+                return [".", ".."] + self.thread_list[url].keys()
             else:
                 raise FuseOSError(ENOENT)
 
@@ -172,6 +165,6 @@ if __name__ == '__main__':
     print "readling list"
     r = requests.get(BASE_URL, headers=REQUEST_HEADERS)
     print "list done"
-    root_list = dict(retrieve_thread_list(BASE_URL + argv[1]))
+    root_list = {name:{"url": url} for name, url in retrieve_thread_list(BASE_URL + argv[1])}
     print "starting fuse"
-    fuse = FUSE(CK(), argv[2], foreground=True, ro=True)
+    fuse = FUSE(CK(root_list), argv[2], foreground=True, ro=True)
