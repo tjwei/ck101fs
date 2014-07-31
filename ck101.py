@@ -73,21 +73,19 @@ def get_imgs(url):
     title, image_urls, date = parse_url(url)
     rtn = []
 
-    def worker(img):
+    def worker((n, img)):
         if not img.startswith('http'):
             return
         resp = read_img(img)
         if resp and resp.content:
-            entry = {"url":img, "size": len(resp.content)}            
+            entry = {"order": n, "url":img, "size": len(resp.content), "date": datetime.now(tzlocal())}
             if "last-modified" in resp.headers:
                 try:                    
-                    entry['date']=dateutil.parser.parse(resp.headers['last-modified'])
+                    entry['date']= dateutil.parser.parse(resp.headers['last-modified'])
                 except:
-                    entry['date'] = datetime.now(tzlocal())
-            else:
-                entry['date'] = datetime.now(tzlocal())
+                    pass # never mind            
             rtn.append(entry)    
-    Pool(5).map(worker, image_urls)
+    Pool(5).map(worker, enumerate(image_urls))
     if not date:
         try:
             date = min(x['date'] for x in rtn if 'date' in x)
@@ -158,11 +156,11 @@ class CK(LoggingMixIn, Operations):
                     imgs, date = get_imgs(url)
                     if date:
                         thread_info['date'] = date                        
-                    for entry in imgs:                        
-                        fn = entry['url'].rsplit("/", 1)[1]
+                    for n, entry in enumerate(imgs):
+                        fn = ("%03d-"%entry['order']) + entry['url'].rsplit("/", 1)[1].split("?", 1)[0]
                         fn_list[fn] = entry
                 fn_list = self.thread_list[url]
-                return [".", ".."] + sorted(fn_list.keys(), key=lambda x:fn_list[x]['date'])
+                return [".", ".."] + sorted(fn_list.keys())
             else:
                 raise FuseOSError(ENOENT)
 

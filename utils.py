@@ -109,7 +109,6 @@ def parse_url(url):
         raise URLParseError
 
     image_urls = html.xpath('//img/@file')
-    print resp.headers
     try:
         date = dateutil.parser.parse(resp.headers["last-modified"])
     except:
