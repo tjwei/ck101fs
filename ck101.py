@@ -5,12 +5,15 @@ from stat import S_IFDIR, S_IFREG
 from sys import argv, exit
 import os
 from time import time, mktime
+from datetime import datetime
 import dateutil.parser
+from dateutil.tz import tzlocal
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
 import gevent
 from gevent import monkey
-CHUNK_SIZE = 3
+from gevent.pool import Pool
+
 monkey.patch_all()
 
 import requests
@@ -18,7 +21,6 @@ from cachecontrol import CacheControl
 sess = requests.session()
 cached_sess = CacheControl(sess)
 from lxml import etree
-from more_itertools import chunked
 from utils import get_image_info, parse_url
 from userexc import URLParseError
 import re
@@ -81,14 +83,16 @@ def get_imgs(url):
                 try:                    
                     entry['date']=dateutil.parser.parse(resp.headers['last-modified'])
                 except:
-                    pass # Never mind
-            rtn.append(entry)
-    for chunked_image_urls in chunked(image_urls, CHUNK_SIZE):
-        jobs = [gevent.spawn(worker, image_url)
-                for image_url in chunked_image_urls]
-        gevent.joinall(jobs)
+                    entry['date'] = datetime.now(tzlocal())
+            else:
+                entry['date'] = datetime.now(tzlocal())
+            rtn.append(entry)    
+    Pool(5).map(worker, image_urls)
     if not date:
-        date = min(x['date'] for x in rtn if 'date' in x)
+        try:
+            date = min(x['date'] for x in rtn if 'date' in x)
+        except:
+            pass #never mind
     return rtn, date
 
 
@@ -144,7 +148,7 @@ class CK(LoggingMixIn, Operations):
 
     def readdir(self, path, fh):
         if path == "/":
-            return [".", ".."] + self.root.keys()
+            return [".", ".."] + sorted(self.root.keys(), key=lambda x:self.root[x]['date'])
         else:
             thread_info = self.get_thread_info(path)            
             if thread_info:
@@ -153,11 +157,12 @@ class CK(LoggingMixIn, Operations):
                     fn_list = self.thread_list[url] = {}
                     imgs, date = get_imgs(url)
                     if date:
-                        thread_info['date'] = date
+                        thread_info['date'] = date                        
                     for entry in imgs:                        
                         fn = entry['url'].rsplit("/", 1)[1]
                         fn_list[fn] = entry
-                return [".", ".."] + self.thread_list[url].keys()
+                fn_list = self.thread_list[url]
+                return [".", ".."] + sorted(fn_list.keys(), key=lambda x:fn_list[x]['date'])
             else:
                 raise FuseOSError(ENOENT)
 
@@ -180,6 +185,6 @@ if __name__ == '__main__':
     print "readling list"
     r = requests.get(BASE_URL, headers=REQUEST_HEADERS)
     print "list done"
-    root_list = {name:{"url": url} for name, url in retrieve_thread_list(BASE_URL + argv[1])}
+    root_list = {name:{"url": url, 'date': datetime.now(tzlocal())} for name, url in retrieve_thread_list(BASE_URL + argv[1])}
     print "starting fuse"
     fuse = FUSE(CK(root_list), argv[2], foreground=True, ro=True)

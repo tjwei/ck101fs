@@ -10,14 +10,13 @@ ck101 filesystem
 這是我拿來練習 fuse 用的
 ![Screen Shot](https://raw.github.com/tjwei/ck101fs/master/ScreenShot.png)
 
-需要 fuse (如 Fuse for OSX) 及 python
+需要 fuse (如 Fuse for OSX) 及 python, 
 需要的 python module 如下 
 ```
 fusepy
 CacheControl
 requests
 gevent
-more_itertools
 ```
 全都能用 pip 安裝，除了 fusepy 外，CacheControl 是  requests 的 cache， 其他是 iloveck101 需要的 module。
 
