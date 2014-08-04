@@ -52,7 +52,7 @@ def retrieve_thread_list(url):
         url = link.attrib['href']
         if not thread_id(url):
             continue
-        if 'title' in link.attrib:
+        if 'title' in link.attrib and len(link.attrib['title']) > 3:
             title = link.attrib['title']
         else:
             title = link.text_content()
@@ -190,10 +190,16 @@ if __name__ == '__main__':
     root_list = {}
     for name, url in retrieve_thread_list(BASE_URL + argv[1]):
         tid = thread_id(url)
+        if len(name) < 4:
+            name = "T"+str(tid)
         if tid in tid_dict:
-            if len(name) < len(tid_dict[tid]):
+            old_name = tid_dict[tid]
+            if len(name) < len(old_name):
                 continue
-            root_list.pop(tid_dict[tid])
+            # need to test whether old_name is in root_list because
+            # it is possible that 2 different thread have same title
+            if old_name in root_list:
+                root_list.pop(old_name)            
         tid_dict[tid] = name
         root_list[name] =  {"url": url, 'date': datetime.now(tzlocal())}
     print "starting fuse"
