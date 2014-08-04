@@ -39,22 +39,25 @@ def thread_id(url):
     return m.group(1)
 
 
+import lxml.html
 def retrieve_thread_list(url):
     """
     The url may contains many thread links. We parse them out.
     """
     resp = requests.get(url, headers=REQUEST_HEADERS)
     # parse html
-    html = etree.HTML(resp.content)
-    links = [l for l in html.xpath(
-        '//a') if 'href' in l.attrib and 'title' in l.attrib]
+    html = lxml.html.fromstring(resp.content)
+    links = [l for l in html.xpath('//a') if 'href' in l.attrib]
     for link in links:
         url = link.attrib['href']
-        title = link.attrib['title']
-        if not url.startswith('http'):
-            url = BASE_URL + url
         if not thread_id(url):
             continue
+        if 'title' in link.attrib:
+            title = link.attrib['title']
+        else:
+            title = link.text_content()
+        if not url.startswith('http'):
+            url = BASE_URL + url
         yield title, url
 
 
@@ -183,6 +186,15 @@ if __name__ == '__main__':
     print "readling list"
     r = requests.get(BASE_URL, headers=REQUEST_HEADERS)
     print "list done"
-    root_list = {name:{"url": url, 'date': datetime.now(tzlocal())} for name, url in retrieve_thread_list(BASE_URL + argv[1])}
+    tid_dict={}
+    root_list = {}
+    for name, url in retrieve_thread_list(BASE_URL + argv[1]):
+        tid = thread_id(url)
+        if tid in tid_dict:
+            if len(name) < len(tid_dict[tid]):
+                continue
+            root_list.pop(tid_dict[tid])
+        tid_dict[tid] = name
+        root_list[name] =  {"url": url, 'date': datetime.now(tzlocal())}
     print "starting fuse"
     fuse = FUSE(CK(root_list), argv[2], foreground=True, ro=True)
