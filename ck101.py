@@ -8,7 +8,6 @@ from time import time, mktime
 from datetime import datetime
 import dateutil.parser
 from dateutil.tz import tzlocal
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
 import gevent
 from gevent import monkey
@@ -16,6 +15,7 @@ from gevent.pool import Pool
 
 monkey.patch_all()
 
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 import requests
 from cachecontrol import CacheControl
 sess = requests.session()
